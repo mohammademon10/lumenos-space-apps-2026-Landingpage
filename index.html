@@ -1,0 +1,2522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LumenOS | The Operating System for Orbital AI</title>
+  <meta name="description" content="LumenOS is the world's first thermodynamics-aware operating system and scheduler for space-based AI data centers. Built for NASA Space Apps Challenge 2026.">
+  <meta name="theme-color" content="#05070d">
+
+  <!-- Favicon (Procedural SVG Satellite + Solar Glow) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2305070d' stroke='%2322d3ee' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23ff9f1c'/%3E%3Crect x='4' y='14' width='6' height='4' rx='1' fill='%2322d3ee'/%3E%3Crect x='22' y='14' width='6' height='4' rx='1' fill='%2322d3ee'/%3E%3Cline x1='10' y1='16' x2='22' y2='16' stroke='%23ffffff' stroke-width='1.5'/%3E%3C/svg%3E">
+
+  <!-- Google Fonts: Space Grotesk (Headings), Inter (Body), JetBrains Mono (Numbers & Code) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CDNs: Three.js for 3D Earth & Satellite, GSAP for smooth timeline & scroll reveal -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       1. DESIGN SYSTEM & CSS VARIABLES
+       ========================================================================== */
+    :root {
+      --bg-space: #05070d;
+      --bg-card: rgba(13, 20, 36, 0.65);
+      --bg-card-hover: rgba(19, 30, 54, 0.85);
+      --bg-glass: rgba(255, 255, 255, 0.03);
+      --border-glass: rgba(255, 255, 255, 0.09);
+      --border-glow-cyan: rgba(34, 211, 238, 0.4);
+      --border-glow-orange: rgba(255, 159, 28, 0.4);
+
+      --color-cyan: #22d3ee;
+      --color-cyan-glow: rgba(34, 211, 238, 0.25);
+      --color-solar: #ff9f1c;
+      --color-solar-glow: rgba(255, 159, 28, 0.3);
+      --color-rose: #f43f5e;
+      --color-amber: #fbbf24;
+      --color-emerald: #10b981;
+
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-faint: #475569;
+
+      --font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --header-height: 72px;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 22px;
+      --radius-full: 9999px;
+      --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Reset & Base Setup */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-space);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      position: relative;
+      background-color: var(--bg-space);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.08) 0%, transparent 60%),
+        radial-gradient(circle at 90% 40%, rgba(255, 159, 28, 0.06) 0%, transparent 50%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Subtle Film Grain Overlay */
+    .film-grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    /* Custom Cursor Glow */
+    .cursor-glow {
+      position: fixed;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(34, 211, 238, 0.07) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 900;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s ease, height 0.3s ease, background 0.3s ease;
+      display: none;
+    }
+    @media (pointer: fine) {
+      .cursor-glow { display: block; }
+    }
+
+    /* Scroll Progress Bar */
+    #scroll-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--color-cyan), var(--color-solar));
+      width: 0%;
+      z-index: 1100;
+      box-shadow: 0 0 10px var(--color-cyan);
+    }
+
+    /* Typography */
+    h1, h2, h3, h4, h5 {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      color: var(--text-muted);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    /* Gradient Shimmer Text */
+    .text-gradient {
+      background: linear-gradient(135deg, #ffffff 10%, #22d3ee 50%, #ff9f1c 95%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .text-gradient-cyan {
+      background: linear-gradient(135deg, #ffffff 20%, #22d3ee 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .text-gradient-solar {
+      background: linear-gradient(135deg, #ffedd5 0%, #ff9f1c 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Container Utility */
+    .container {
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    section {
+      position: relative;
+      padding: 110px 0;
+      z-index: 10;
+    }
+
+    /* Pill Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(34, 211, 238, 0.08);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--color-cyan);
+      box-shadow: 0 0 15px rgba(34, 211, 238, 0.15);
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-cyan);
+      box-shadow: 0 0 8px var(--color-cyan);
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.6; }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-cyan), #0284c7);
+      color: #030712;
+      box-shadow: 0 0 25px rgba(34, 211, 238, 0.35);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 35px rgba(34, 211, 238, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .btn-solar {
+      background: linear-gradient(135deg, var(--color-solar), #ea580c);
+      color: #030712;
+      box-shadow: 0 0 25px rgba(255, 159, 28, 0.35);
+    }
+    .btn-solar:hover {
+      box-shadow: 0 0 35px rgba(255, 159, 28, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid var(--border-glass);
+      backdrop-filter: blur(8px);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Glass Cards */
+    .card-glass {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      backdrop-filter: blur(16px);
+      transition: var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+    }
+    .card-glass::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    }
+    .card-glass:hover {
+      border-color: rgba(34, 211, 238, 0.3);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(34, 211, 238, 0.08);
+      transform: translateY(-3px);
+    }
+
+    /* ==========================================================================
+       2. NAVIGATION
+       ========================================================================== */
+    header.site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-height);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      transition: var(--transition-smooth);
+    }
+    header.site-header.scrolled {
+      background: rgba(5, 7, 13, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-glass);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+    }
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--color-cyan), var(--color-solar));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 0 15px rgba(34, 211, 238, 0.4);
+    }
+    .brand-title {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .brand-title span {
+      color: var(--color-cyan);
+    }
+
+    nav.desktop-nav {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    nav.desktop-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: var(--transition-smooth);
+    }
+    nav.desktop-nav a:hover {
+      color: var(--color-cyan);
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    @media (max-width: 868px) {
+      nav.desktop-nav { display: none; }
+      .mobile-menu-btn { display: block; }
+    }
+
+    /* ==========================================================================
+       3. SECTION 1: HERO & 3D CANVAS
+       ========================================================================== */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding-top: calc(var(--header-height) + 40px);
+      padding-bottom: 60px;
+      overflow: hidden;
+    }
+
+    #webgl-canvas-container {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+    #hero-webgl {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .hero-left {
+      max-width: 660px;
+    }
+
+    .hero-badge-wrap {
+      margin-bottom: 24px;
+    }
+
+    .hero-headline {
+      font-size: clamp(2.6rem, 5.2vw, 4.4rem);
+      font-weight: 800;
+      line-height: 1.08;
+      margin-bottom: 24px;
+    }
+
+    .hero-subline {
+      font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+    }
+
+    .hero-cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    /* Floating HUD Card */
+    .hero-hud-card {
+      background: rgba(8, 14, 28, 0.75);
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(34, 211, 238, 0.15);
+      position: relative;
+      animation: float-hud 6s ease-in-out infinite;
+    }
+
+    @keyframes float-hud {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 20px;
+    }
+    .hud-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hud-status-chip {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--color-emerald);
+      color: var(--color-emerald);
+      font-weight: 600;
+    }
+
+    .hud-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .hud-stat-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+    .hud-stat-label {
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .hud-stat-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .hud-stat-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    @media (max-width: 992px) {
+      .hero-content {
+        grid-template-columns: 1fr;
+      }
+      .hero-hud-card {
+        margin-top: 20px;
+      }
+    }
+
+    /* ==========================================================================
+       4. SECTION 2: THE PROBLEM
+       ========================================================================== */
+    .section-eyebrow {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--color-solar);
+      margin-bottom: 12px;
+      display: block;
+    }
+    .section-heading {
+      font-size: clamp(2rem, 3.8vw, 3rem);
+      margin-bottom: 20px;
+    }
+    .section-desc {
+      font-size: 1.1rem;
+      max-width: 720px;
+      line-height: 1.7;
+    }
+
+    .problem-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-top: 50px;
+    }
+
+    .stat-card {
+      position: relative;
+    }
+    .stat-number {
+      font-size: clamp(2.4rem, 4vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .stat-growth-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(244, 63, 94, 0.15);
+      color: var(--color-rose);
+      margin-bottom: 14px;
+    }
+    .stat-card-title {
+      font-size: 1.05rem;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .industry-callout {
+      margin-top: 48px;
+      padding: 28px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(255, 159, 28, 0.08), rgba(34, 211, 238, 0.04));
+      border: 1px solid rgba(255, 159, 28, 0.25);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .callout-icon {
+      font-size: 2.2rem;
+      flex-shrink: 0;
+    }
+    .callout-text {
+      font-size: 1.15rem;
+      color: #fff;
+      font-weight: 500;
+    }
+    .callout-text span {
+      color: var(--color-solar);
+      font-weight: 700;
+    }
+
+    /* ==========================================================================
+       5. SECTION 3: THE SILENT KILLER (VIEW FACTOR DEMO)
+       ========================================================================== */
+    .viewfactor-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 50px;
+      align-items: center;
+    }
+
+    .vf-interactive-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      backdrop-filter: blur(16px);
+    }
+
+    .vf-button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .vf-toggle-btn {
+      padding: 14px 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      text-align: center;
+    }
+    .vf-toggle-btn.active-space {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--color-emerald);
+      color: var(--color-emerald);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+    }
+    .vf-toggle-btn.active-night {
+      background: rgba(251, 191, 36, 0.15);
+      border-color: var(--color-amber);
+      color: var(--color-amber);
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+    }
+    .vf-toggle-btn.active-day {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: var(--color-rose);
+      color: var(--color-rose);
+      box-shadow: 0 0 20px rgba(244, 63, 94, 0.2);
+    }
+
+    .cooling-bar-container {
+      margin: 24px 0;
+    }
+    .cooling-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
+    .cooling-progress-track {
+      width: 100%;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      position: relative;
+    }
+    .cooling-progress-fill {
+      height: 100%;
+      width: 90.9%;
+      background: linear-gradient(90deg, #10b981, #22d3ee);
+      border-radius: var(--radius-full);
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1), background 0.6s ease;
+      box-shadow: 0 0 12px var(--color-cyan);
+    }
+
+    .stefan-formula-card {
+      margin-top: 24px;
+      padding: 16px 20px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+    }
+    .stefan-math {
+      font-size: 1rem;
+      color: var(--color-cyan);
+      margin-bottom: 6px;
+    }
+
+    /* Satellite Graphic Canvas */
+    .vf-satellite-visual {
+      background: radial-gradient(circle at center, rgba(34, 211, 238, 0.05), transparent 70%);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      position: relative;
+    }
+    .satellite-diagram-svg {
+      width: 100%;
+      max-width: 320px;
+      height: 260px;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @media (max-width: 992px) {
+      .viewfactor-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ==========================================================================
+       6. SECTION 4: HOW LUMENOS THINKS (3 CONDITIONS)
+       ========================================================================== */
+    .conditions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 28px;
+      margin-top: 50px;
+    }
+
+    .condition-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .cond-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .cond-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .cond-badge.a { background: rgba(16, 185, 129, 0.15); color: var(--color-emerald); border: 1px solid var(--color-emerald); }
+    .cond-badge.b { background: rgba(251, 191, 36, 0.15); color: var(--color-amber); border: 1px solid var(--color-amber); }
+    .cond-badge.c { background: rgba(34, 211, 238, 0.15); color: var(--color-cyan); border: 1px solid var(--color-cyan); }
+
+    .cond-icon {
+      font-size: 2.2rem;
+    }
+    .cond-title {
+      font-size: 1.35rem;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .cond-action {
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 3px solid;
+      margin-top: 20px;
+      font-size: 0.9rem;
+    }
+    .cond-action.a { border-left-color: var(--color-emerald); }
+    .cond-action.b { border-left-color: var(--color-amber); }
+    .cond-action.c { border-left-color: var(--color-cyan); }
+
+    /* Workload Classes */
+    .workloads-container {
+      margin-top: 60px;
+      padding: 32px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+    }
+    .workload-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 20px;
+    }
+    .workload-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .chip-heavy { background: rgba(244, 63, 94, 0.12); border: 1px solid rgba(244, 63, 94, 0.4); color: #fda4af; }
+    .chip-medium { background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.4); color: #fde68a; }
+    .chip-cold { background: rgba(34, 211, 238, 0.12); border: 1px solid rgba(34, 211, 238, 0.4); color: #a5f3fc; }
+
+    /* ==========================================================================
+       7. SECTION 5: LIVE ORBIT SIMULATOR (CENTERPIECE)
+       ========================================================================== */
+    .simulator-box {
+      background: rgba(8, 14, 28, 0.85);
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 40px rgba(34, 211, 238, 0.1);
+      margin-top: 50px;
+      position: relative;
+    }
+
+    .sim-controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-glass);
+      margin-bottom: 28px;
+    }
+
+    .sim-button-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sim-time-display {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .sim-speed-btn {
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      transition: var(--transition-smooth);
+    }
+    .sim-speed-btn.active {
+      background: var(--color-cyan);
+      color: #030712;
+      font-weight: 700;
+    }
+
+    /* Scrubber Slider */
+    .timeline-scrubber-wrap {
+      margin-bottom: 30px;
+    }
+    .timeline-scrubber {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #ff9f1c 0%, #ff9f1c 63%, #1e1b4b 63%, #1e1b4b 100%);
+      outline: none;
+      cursor: pointer;
+    }
+    .timeline-scrubber::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--color-cyan);
+      cursor: pointer;
+      box-shadow: 0 0 12px var(--color-cyan);
+      border: 2px solid #ffffff;
+    }
+
+    .orbit-visual-row {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+
+    /* Circular Orbit Diagram */
+    .orbit-circular-display {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      margin: 0 auto;
+    }
+    .orbit-circular-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    /* Stacked Charts Container */
+    .charts-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .chart-panel {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .chart-panel.crash-shake {
+      animation: crash-anim 0.5s ease-in-out;
+      border-color: var(--color-rose);
+      box-shadow: 0 0 30px rgba(244, 63, 94, 0.4);
+    }
+    @keyframes crash-anim {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+
+    .chart-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .chart-label {
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .current-job-tag {
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+    }
+
+    .canvas-chart {
+      width: 100%;
+      height: 140px;
+      display: block;
+    }
+
+    @media (max-width: 992px) {
+      .orbit-visual-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ==========================================================================
+       8. SECTION 6: RESULTS COMPARISON
+       ========================================================================== */
+    .results-split-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 50px;
+    }
+
+    .result-column {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      border: 1px solid var(--border-glass);
+      position: relative;
+    }
+    .result-column.lumenos {
+      border-color: rgba(34, 211, 238, 0.4);
+      background: linear-gradient(180deg, rgba(34, 211, 238, 0.08) 0%, rgba(13, 20, 36, 0.6) 100%);
+      box-shadow: 0 20px 50px rgba(34, 211, 238, 0.1);
+    }
+    .result-column.naive {
+      border-color: rgba(244, 63, 94, 0.3);
+      background: linear-gradient(180deg, rgba(244, 63, 94, 0.05) 0%, rgba(13, 20, 36, 0.6) 100%);
+    }
+
+    .result-metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .result-metric-row:last-child {
+      border-bottom: none;
+    }
+
+    .productivity-hero-banner {
+      margin-top: 48px;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(255, 159, 28, 0.12));
+      border: 1px solid var(--color-cyan);
+      border-radius: var(--radius-lg);
+      padding: 36px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(34, 211, 238, 0.15);
+    }
+    .productivity-stat {
+      font-size: clamp(3rem, 6vw, 4.8rem);
+      font-weight: 800;
+      font-family: var(--font-heading);
+      background: linear-gradient(135deg, #22d3ee, #ff9f1c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .results-split-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ==========================================================================
+       9. SECTION 7: ARCHITECTURE FLOW
+       ========================================================================== */
+    .arch-flow-diagram {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-top: 60px;
+      position: relative;
+    }
+
+    .arch-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+    .arch-node:hover {
+      border-color: var(--color-cyan);
+      transform: translateY(-4px);
+      box-shadow: 0 15px 30px rgba(34, 211, 238, 0.15);
+    }
+    .arch-node-brain {
+      border-color: rgba(255, 159, 28, 0.5);
+      background: linear-gradient(180deg, rgba(255, 159, 28, 0.12), rgba(13, 20, 36, 0.8));
+    }
+
+    .node-num {
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--color-cyan);
+      margin-bottom: 8px;
+    }
+    .node-title {
+      font-size: 1.1rem;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .node-tech {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+    }
+
+    .arch-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 40px;
+    }
+
+    /* ==========================================================================
+       10. SECTION 8: WHY WE'RE UNIQUE (TABLE)
+       ========================================================================== */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 50px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-glass);
+      background: var(--bg-card);
+    }
+    table.unique-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+    table.unique-table th, table.unique-table td {
+      padding: 18px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    table.unique-table th {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-family: var(--font-heading);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tr.highlight-row {
+      background: rgba(34, 211, 238, 0.08);
+      font-weight: 600;
+    }
+    tr.highlight-row td {
+      border-top: 1px solid rgba(34, 211, 238, 0.3);
+      border-bottom: 1px solid rgba(34, 211, 238, 0.3);
+      color: #fff;
+    }
+
+    .check-icon { color: var(--color-emerald); font-weight: 700; font-size: 1.1rem; }
+    .cross-icon { color: var(--color-rose); font-weight: 700; font-size: 1.1rem; }
+
+    /* ==========================================================================
+       11. SECTION 9: TEAM PROTON
+       ========================================================================== */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 28px;
+      margin-top: 50px;
+    }
+
+    .team-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      padding: 32px 24px;
+      text-align: center;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+    }
+    .team-card:hover {
+      transform: translateY(-8px) rotateX(4deg);
+      border-color: rgba(34, 211, 238, 0.4);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(34, 211, 238, 0.1);
+    }
+    .team-avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(255, 159, 28, 0.2));
+      border: 2px solid rgba(34, 211, 238, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+    }
+    .team-role {
+      font-size: 0.8rem;
+      color: var(--color-cyan);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .team-name {
+      font-size: 1.25rem;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .team-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       12. SECTION 10: CTA & FOOTER
+       ========================================================================== */
+    #cta {
+      text-align: center;
+      padding: 120px 0;
+      background: radial-gradient(circle at center, rgba(34, 211, 238, 0.08) 0%, transparent 70%);
+    }
+    .cta-heading {
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      max-width: 900px;
+      margin: 0 auto 30px;
+      line-height: 1.15;
+    }
+
+    footer.site-footer {
+      border-top: 1px solid var(--border-glass);
+      padding: 50px 0 30px;
+      background: #030408;
+      font-size: 0.9rem;
+    }
+    .footer-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 20px;
+    }
+    .footer-note {
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 600px) {
+      section { padding: 70px 0; }
+      .btn { width: 100%; }
+      .hero-cta-group { flex-direction: column; }
+    }
+
+    /* Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Film Grain & Ambient Cursor -->
+  <div class="film-grain" aria-hidden="true"></div>
+  <div class="cursor-glow" id="cursor-glow" aria-hidden="true"></div>
+  <div id="scroll-progress" aria-hidden="true"></div>
+
+  <!-- STICKY TRANSLUCENT NAVBAR -->
+  <header class="site-header" id="site-header">
+    <div class="container nav-inner">
+      <a href="#hero" class="brand-logo" aria-label="LumenOS Homepage">
+        <div class="logo-icon">🛰️</div>
+        <div class="brand-title">Lumen<span>OS</span></div>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Main Navigation">
+        <a href="#problem">The Problem</a>
+        <a href="#vacuum">View Factor</a>
+        <a href="#logic">Logic</a>
+        <a href="#simulator">Live Simulator</a>
+        <a href="#results">Results</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#unique">Comparison</a>
+        <a href="#team">Team</a>
+      </nav>
+
+      <a href="#simulator" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.85rem;">
+        Launch Simulator
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ======================================================================
+         SECTION 1: HERO
+         ====================================================================== -->
+    <section id="hero" aria-label="Hero Section">
+      <!-- 3D Three.js Earth & Orbiting Satellite Canvas -->
+      <div id="webgl-canvas-container" aria-hidden="true">
+        <canvas id="hero-webgl"></canvas>
+      </div>
+
+      <div class="container hero-content">
+        <div class="hero-left">
+          <div class="hero-badge-wrap">
+            <div class="badge">
+              <span class="badge-dot"></span>
+              NASA Space Apps 2026 · The Next Frontier
+            </div>
+          </div>
+
+          <h1 class="hero-headline">
+            The Operating System for <span class="text-gradient">Orbital AI</span>.
+          </h1>
+
+          <p class="hero-subline">
+            LumenOS reads the orbit — sunlight, shadow, radiator direction, and battery — and decides when heavy AI runs and when it pauses before heat destroys the satellite.
+          </p>
+
+          <div class="hero-cta-group">
+            <a href="#simulator" class="btn btn-solar">
+              <span>▶</span> Watch the Live Simulation
+            </a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="btn btn-secondary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+        </div>
+
+        <!-- Live Floating Telemetry HUD Card -->
+        <div class="hero-right">
+          <div class="hero-hud-card" id="hero-hud">
+            <div class="hud-header">
+              <div class="hud-title">
+                <span style="color:var(--color-cyan);">●</span> ORBITAL TELEMETRY NODE
+              </div>
+              <div class="hud-status-chip mono" id="hud-status-badge">OPTIMAL · TRAINING</div>
+            </div>
+
+            <div class="hud-grid">
+              <div class="hud-stat-box">
+                <div class="hud-stat-label">Core Temp</div>
+                <div class="hud-stat-value mono" id="hud-temp" style="color: var(--color-cyan);">48.2°C</div>
+                <div class="hud-stat-sub">Limit: 60.0°C (Nominal)</div>
+              </div>
+
+              <div class="hud-stat-box">
+                <div class="hud-stat-label">Radiator Facing</div>
+                <div class="hud-stat-value mono" id="hud-view" style="font-size:1.05rem; color:var(--color-emerald);">DEEP SPACE</div>
+                <div class="hud-stat-sub">Sink Temp: 3.0 K</div>
+              </div>
+
+              <div class="hud-stat-box">
+                <div class="hud-stat-label">Solar Power</div>
+                <div class="hud-stat-value mono" id="hud-solar" style="color: var(--color-solar);">1,840 W</div>
+                <div class="hud-stat-sub">Excess to 500Wh Battery</div>
+              </div>
+
+              <div class="hud-stat-box">
+                <div class="hud-stat-label">Active Workload</div>
+                <div class="hud-stat-value mono" id="hud-workload" style="font-size:0.95rem; color:#fff;">LLM_Fine_Tune</div>
+                <div class="hud-stat-sub">900W Thermal Load</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 2: THE PROBLEM
+         ====================================================================== -->
+    <section id="problem" aria-label="The Terrestrial Problem">
+      <div class="container">
+        <span class="section-eyebrow">The Terrestrial Bottleneck</span>
+        <h2 class="section-heading">Earth is AI's biggest cost.</h2>
+        <p class="section-desc">
+          Terrestrial hyperscale compute is colliding with planetary physics. Grids are saturated, water cooling reservoirs are draining, and regional moratoria are blocking expansion.
+        </p>
+
+        <div class="problem-stats-grid">
+          <div class="card-glass stat-card">
+            <span class="stat-growth-tag">+128% Projected Growth</span>
+            <div class="stat-number mono text-gradient-cyan" id="stat-electricity">945 TWh</div>
+            <h3 class="stat-card-title">Electricity Demand (2030)</h3>
+            <p>Global data center power jumps from ~415 TWh (2024) to 945 TWh by 2030 (IEA Energy & AI) — exceeding the entire electrical consumption of Japan.</p>
+          </div>
+
+          <div class="card-glass stat-card">
+            <span class="stat-growth-tag">+34% Corporate Spike</span>
+            <div class="stat-number mono text-gradient-solar">700,000 L</div>
+            <h3 class="stat-card-title">Freshwater per Training Run</h3>
+            <p>Training a single frontier model consumes hundreds of thousands of liters of evaporative cooling water (UC Riverside / Microsoft Sustainability Reports).</p>
+          </div>
+
+          <div class="card-glass stat-card">
+            <span class="stat-growth-tag">Global Climate Impact</span>
+            <div class="stat-number mono" style="color: var(--color-rose);">1.5%</div>
+            <h3 class="stat-card-title">Global Carbon Emissions</h3>
+            <p>Data centers already rival the entire global commercial aviation industry in energy-related CO₂ output, with Virginia grids at maximum capacity.</p>
+          </div>
+        </div>
+
+        <div class="industry-callout">
+          <div class="callout-icon">☀️</div>
+          <div class="callout-text">
+            The industry is looking up — where sunlight is endless (<span>~1,361 W/m²</span>) and deep space offers a natural heat sink. But space introduces one lethal obstacle.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 3: THE SILENT KILLER (VIEW FACTOR DEMO)
+         ========================================================================== -->
+    <section id="vacuum" aria-label="Thermal Physics and View Factor Demo">
+      <div class="container">
+        <span class="section-eyebrow">The Vacuum Paradox</span>
+        <h2 class="section-heading">Heat in a vacuum: No air, no fans.</h2>
+        <p class="section-desc">
+          In orbit, convection is impossible. Heat can only escape as infrared radiation via panels. How fast heat radiates depends strictly on your <strong>View Factor</strong>: what your radiator sees.
+        </p>
+
+        <div class="viewfactor-container">
+          <!-- Interactive Toggle & Controls -->
+          <div class="vf-interactive-box">
+            <h3 style="color:#fff; margin-bottom: 8px;">Interactive View-Factor Simulator</h3>
+            <p style="font-size:0.9rem; margin-bottom: 24px;">Rotate the satellite's 1.5 m² radiator panel to inspect the live change in heat rejection capacity:</p>
+
+            <div class="vf-button-group">
+              <button class="vf-toggle-btn active-space" id="vf-btn-space" onclick="setViewFactor('space')">
+                Deep Space<br><span class="mono" style="font-size:0.75rem;">3 K · 909W</span>
+              </button>
+              <button class="vf-toggle-btn" id="vf-btn-night" onclick="setViewFactor('night')">
+                Earth Night<br><span class="mono" style="font-size:0.75rem;">220 K · 750W</span>
+              </button>
+              <button class="vf-toggle-btn" id="vf-btn-day" onclick="setViewFactor('day')">
+                Earth Day<br><span class="mono" style="font-size:0.75rem;">280 K · 491W</span>
+              </button>
+            </div>
+
+            <div class="cooling-bar-container">
+              <div class="cooling-bar-labels mono">
+                <span>Cooling Capacity (Q_out)</span>
+                <span id="vf-wattage-label" style="font-weight:700; color:var(--color-emerald);">909 W</span>
+              </div>
+              <div class="cooling-progress-track">
+                <div class="cooling-progress-fill" id="vf-progress-fill"></div>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px;">
+              <div class="hud-stat-box">
+                <div class="hud-stat-label">Core Equilibrium</div>
+                <div class="hud-stat-value mono" id="vf-core-temp" style="color:var(--color-emerald);">36.4°C</div>
+              </div>
+              <div class="hud-stat-box">
+                <div class="hud-stat-label">Thermal Headroom</div>
+                <div class="hud-stat-value mono" id="vf-headroom" style="color:var(--color-cyan);">+23.6°C</div>
+              </div>
+            </div>
+
+            <!-- Stefan-Boltzmann Formula Box -->
+            <div class="stefan-formula-card mono">
+              <div class="stefan-math">Q_out = ε · σ · A · (T_rad⁴ − T_sink⁴)</div>
+              <div style="color:var(--text-muted); font-size:0.78rem;">
+                ε = 0.80 (White paint) · σ = 5.67×10⁻⁸ · A = 1.5 m² · T_rad = 340 K
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Radiator SVG Vector Graphic -->
+          <div class="vf-satellite-visual" id="vf-visual-stage">
+            <svg class="satellite-diagram-svg" id="satellite-svg" viewBox="0 0 400 300">
+              <!-- Glow Aura -->
+              <circle cx="200" cy="150" r="90" id="svg-thermal-glow" fill="rgba(16, 185, 129, 0.15)"/>
+              <!-- Solar Panel Left -->
+              <rect x="50" y="130" width="70" height="40" rx="3" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+              <line x1="50" y1="150" x2="120" y2="150" stroke="#38bdf8" stroke-width="1"/>
+              <line x1="85" y1="130" x2="85" y2="170" stroke="#38bdf8" stroke-width="1"/>
+              <!-- Solar Panel Right -->
+              <rect x="280" y="130" width="70" height="40" rx="3" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+              <line x1="280" y1="150" x2="350" y2="150" stroke="#38bdf8" stroke-width="1"/>
+              <line x1="315" y1="130" x2="315" y2="170" stroke="#38bdf8" stroke-width="1"/>
+              <!-- Satellite Main Bus Chassis -->
+              <rect x="150" y="105" width="100" height="90" rx="10" fill="#0f172a" stroke="#64748b" stroke-width="2.5"/>
+              <rect x="165" y="125" width="70" height="50" rx="5" id="svg-bus-core" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+              <text x="200" y="155" fill="#ffffff" font-size="10" font-family="Space Grotesk" font-weight="bold" text-anchor="middle">LUMEN CORE</text>
+              <!-- Radiator Panel Array (Pivots dynamically) -->
+              <g id="svg-radiator-group" transform="rotate(0 200 80)">
+                <rect x="140" y="55" width="120" height="20" rx="4" id="svg-radiator-panel" fill="#334155" stroke="#10b981" stroke-width="2"/>
+                <line x1="140" y1="40" x2="140" y2="15" stroke="#10b981" stroke-dasharray="3,3" stroke-width="1.5"/>
+                <line x1="200" y1="40" x2="200" y2="10" stroke="#10b981" stroke-dasharray="3,3" stroke-width="2"/>
+                <line x1="260" y1="40" x2="260" y2="15" stroke="#10b981" stroke-dasharray="3,3" stroke-width="1.5"/>
+                <polygon points="195,12 200,4 205,12" fill="#10b981"/>
+              </g>
+            </svg>
+            <div class="mono" id="vf-env-indicator" style="margin-top:14px; font-size:0.85rem; color:var(--color-emerald);">
+              ● SINK: DEEP SPACE (3 Kelvin) — ZERO THERMAL RESISTANCE
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 4: HOW LUMENOS THINKS (3 CONDITIONS)
+         ====================================================================== -->
+    <section id="logic" aria-label="LumenOS Scheduling Logic">
+      <div class="container">
+        <span class="section-eyebrow">The Thermodynamic Brain</span>
+        <h2 class="section-heading">How LumenOS thinks: The 3 conditions.</h2>
+        <p class="section-desc">
+          Terrestrial operating systems schedule jobs based on CPU load and RAM availability. LumenOS schedules based on orbit phase, thermal absorption, and radiator view.
+        </p>
+
+        <div class="conditions-grid">
+          <!-- Condition A -->
+          <div class="card-glass condition-card">
+            <div>
+              <div class="cond-header">
+                <span class="cond-badge a mono">Condition A</span>
+                <span class="cond-icon">🚀</span>
+              </div>
+              <h3 class="cond-title">Sunlight + Deep Space</h3>
+              <p>Solar arrays deliver peak generation (up to 2,000 W) while radiators face 3 Kelvin deep space. Maximum cooling headroom is unlocked.</p>
+            </div>
+            <div class="cond-action a">
+              <strong style="color:var(--color-emerald);">Action:</strong> Run <strong>Heavy AI Workloads</strong> (LLM Fine-Tuning & Model Training).
+            </div>
+          </div>
+
+          <!-- Condition B -->
+          <div class="card-glass condition-card">
+            <div>
+              <div class="cond-header">
+                <span class="cond-badge b mono">Condition B</span>
+                <span class="cond-icon">⚠️</span>
+              </div>
+              <h3 class="cond-title">Radiator Facing Earth</h3>
+              <p>Earth-day albedo radiates 280 K infrared back into the satellite. Radiator cooling plummets to ~491 W. Heavy workloads would trigger a thermal runaway.</p>
+            </div>
+            <div class="cond-action b">
+              <strong style="color:var(--color-amber);">Action:</strong> Checkpoint Heavy jobs, pause safely at 56°C; dispatch <strong>Medium Workloads</strong>.
+            </div>
+          </div>
+
+          <!-- Condition C -->
+          <div class="card-glass condition-card">
+            <div>
+              <div class="cond-header">
+                <span class="cond-badge c mono">Condition C</span>
+                <span class="cond-icon">🌑</span>
+              </div>
+              <h3 class="cond-title">Orbital Eclipse</h3>
+              <p>Satellite traverses Earth's shadow for ~35 minutes. Solar power is 0 W; satellite operates on its 500 Wh battery pack (capped at 200 W discharge).</p>
+            </div>
+            <div class="cond-action c">
+              <strong style="color:var(--color-cyan);">Action:</strong> Deep Sleep compute; execute <strong>Cold Workloads</strong> (sorting, log compaction).
+            </div>
+          </div>
+        </div>
+
+        <!-- Workload Catalog Chips -->
+        <div class="workloads-container">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <h3 style="color:#fff; font-size:1.15rem;">Workload Catalog & Heat Footprints</h3>
+            <span class="mono" style="font-size:0.8rem; color:var(--text-muted);">Predictive Dispatch Profiler</span>
+          </div>
+
+          <div class="workload-chips-row">
+            <div class="workload-chip chip-heavy">
+              <span>●</span> LLM Fine-Tuning <strong>(~900 W)</strong>
+            </div>
+            <div class="workload-chip chip-heavy">
+              <span>●</span> SAR Radar Inference <strong>(~780 W)</strong>
+            </div>
+            <div class="workload-chip chip-medium">
+              <span>●</span> Object Detection <strong>(~135 W)</strong>
+            </div>
+            <div class="workload-chip chip-medium">
+              <span>●</span> Data Validation <strong>(~90 W)</strong>
+            </div>
+            <div class="workload-chip chip-cold">
+              <span>●</span> Data Sorting <strong>(~30 W)</strong>
+            </div>
+            <div class="workload-chip chip-cold">
+              <span>●</span> Log Compression <strong>(~25 W)</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 5: LIVE ORBIT SIMULATOR (THE CENTERPIECE)
+         ====================================================================== -->
+    <section id="simulator" aria-label="Interactive 90-Minute Orbital Simulator">
+      <div class="container">
+        <span class="section-eyebrow">Interactive Head-to-Head Proof</span>
+        <h2 class="section-heading">Live Orbit Simulator: LumenOS vs Naive</h2>
+        <p class="section-desc">
+          Watch a full 95.6-minute LEO orbit unfold in real time. A thermally blind scheduler crashes at 95.4°C and loses in-progress progress; LumenOS forecasts ahead, checkpoints gracefully, and keeps running safely.
+        </p>
+
+        <div class="simulator-box">
+          <!-- Control Bar -->
+          <div class="sim-controls-bar">
+            <div class="sim-button-cluster">
+              <button class="btn btn-primary" id="sim-play-btn" style="padding: 10px 22px; font-size:0.85rem;" onclick="toggleSimulator()">
+                <span id="play-icon">▶</span> <span id="play-text">Run Orbit</span>
+              </button>
+              <button class="btn btn-secondary" style="padding: 10px 16px; font-size:0.85rem;" onclick="resetSimulator()">
+                ↺ Reset
+              </button>
+              <div style="display:flex; gap:6px; margin-left:12px;">
+                <button class="sim-speed-btn active" id="spd-1" onclick="setSpeed(1)">1x</button>
+                <button class="sim-speed-btn" id="spd-5" onclick="setSpeed(5)">5x</button>
+                <button class="sim-speed-btn" id="spd-15" onclick="setSpeed(15)">15x</button>
+              </div>
+            </div>
+
+            <div class="sim-time-display mono">
+              T + <span id="sim-clock" style="color:var(--color-cyan);">00:00</span> / 95.6 min
+              <span id="sim-phase-tag" style="font-size:0.75rem; margin-left:12px; padding:3px 10px; border-radius:99px; background:rgba(255,159,28,0.2); color:var(--color-solar);">SUNLIT</span>
+            </div>
+          </div>
+
+          <!-- Timeline Scrubber -->
+          <div class="timeline-scrubber-wrap">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.8rem; font-family:var(--font-mono); color:var(--text-muted);">
+              <span>0m Sunrise (Deep Space)</span>
+              <span>15m Earth-Day Transition</span>
+              <span>60m Eclipse Entry (Battery Only)</span>
+              <span>95.6m Orbit Complete</span>
+            </div>
+            <input type="range" class="timeline-scrubber" id="sim-scrubber" min="0" max="95.6" step="0.1" value="0" oninput="scrubSimulator(this.value)">
+          </div>
+
+          <!-- Orbit Circle & Stacked Temperature Charts -->
+          <div class="orbit-visual-row">
+            <!-- 2D Orbit Graphic -->
+            <div class="orbit-circular-display">
+              <svg class="orbit-circular-svg" viewBox="0 0 260 260">
+                <!-- Earth in center -->
+                <circle cx="130" cy="130" r="45" fill="#0284c7" stroke="#38bdf8" stroke-width="2"/>
+                <circle cx="120" cy="120" r="28" fill="#15803d" opacity="0.6"/>
+                <!-- Sunlit Arc (0 to 226 deg) -->
+                <circle cx="130" cy="130" r="95" fill="none" stroke="#ff9f1c" stroke-width="6" stroke-dasharray="375 600" opacity="0.85"/>
+                <!-- Eclipse Arc (remainder) -->
+                <circle cx="130" cy="130" r="95" fill="none" stroke="#475569" stroke-width="6" stroke-dasharray="225 600" stroke-dashoffset="-375" opacity="0.5"/>
+                <!-- Orbiting Satellite Dot -->
+                <g id="sim-orbit-sat" transform="rotate(0 130 130)">
+                  <circle cx="225" cy="130" r="8" fill="#22d3ee" stroke="#ffffff" stroke-width="2"/>
+                  <circle cx="225" cy="130" r="14" fill="none" stroke="#22d3ee" opacity="0.5"/>
+                </g>
+              </svg>
+              <div style="text-align:center; margin-top:8px; font-size:0.75rem; font-family:var(--font-mono); color:var(--text-muted);">
+                ORBITAL POSITION
+              </div>
+            </div>
+
+            <!-- Two Stacked Synchronized Charts -->
+            <div class="charts-stack">
+              <!-- Naive Scheduler (Crash & Shake) -->
+              <div class="chart-panel" id="panel-naive">
+                <div class="chart-header-row">
+                  <div class="chart-label" style="color:var(--color-rose);">
+                    <span>❌</span> Naive Scheduler (Thermally Blind)
+                  </div>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="mono" id="naive-temp-readout" style="font-size:1.1rem; font-weight:700; color:var(--color-rose);">25.0°C</span>
+                    <span class="current-job-tag mono" id="naive-job-tag" style="background:rgba(244,63,94,0.15); color:#fda4af; border:1px solid rgba(244,63,94,0.3);">
+                      LLM_Fine_Tuning (900W)
+                    </span>
+                  </div>
+                </div>
+                <canvas class="canvas-chart" id="chart-naive"></canvas>
+              </div>
+
+              <!-- LumenOS Scheduler (Optimal) -->
+              <div class="chart-panel" id="panel-lumenos" style="border-color:rgba(34,211,238,0.4); background:rgba(34,211,238,0.03);">
+                <div class="chart-header-row">
+                  <div class="chart-label" style="color:var(--color-cyan);">
+                    <span>🧠</span> LumenOS (Thermodynamics-Aware)
+                  </div>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="mono" id="lumen-temp-readout" style="font-size:1.1rem; font-weight:700; color:var(--color-cyan);">25.0°C</span>
+                    <span class="current-job-tag mono" id="lumen-job-tag" style="background:rgba(34,211,238,0.15); color:#67e8f9; border:1px solid rgba(34,211,238,0.3);">
+                      LLM_Fine_Tuning (900W)
+                    </span>
+                  </div>
+                </div>
+                <canvas class="canvas-chart" id="chart-lumenos"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 6: RESULTS COMPARISON
+         ====================================================================== -->
+    <section id="results" aria-label="Empirical Results and Benchmarks">
+      <div class="container">
+        <span class="section-eyebrow">Proven Headroom</span>
+        <h2 class="section-heading">Deterministic Results: Same Physics, Zero Crashes.</h2>
+        <p class="section-desc">
+          Subjected to the exact same orbital thermal dynamics and identical workload queues, LumenOS guarantees zero shutdowns and preserves compute state.
+        </p>
+
+        <div class="results-split-grid">
+          <!-- LumenOS Column -->
+          <div class="result-column lumenos">
+            <div class="badge" style="margin-bottom:20px;">LumenOS Scheduler</div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Max Temperature</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:var(--color-cyan);">59.9°C</span>
+            </div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Useful Compute Time</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:var(--color-emerald);">90.0 min</span>
+            </div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Emergency Thermal Shutdowns</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:var(--color-emerald);">0</span>
+            </div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Lost In-Progress Work</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:#fff;">0.0 min (Checkpointed)</span>
+            </div>
+          </div>
+
+          <!-- Naive Column -->
+          <div class="result-column naive">
+            <div class="badge" style="margin-bottom:20px; background:rgba(244,63,94,0.1); border-color:rgba(244,63,94,0.3); color:var(--color-rose);">Naive Scheduler</div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Max Temperature</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:var(--color-rose);">95.4°C (OVERHEAT)</span>
+            </div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Useful Compute Time</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:var(--color-rose);">64.5 min</span>
+            </div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Emergency Thermal Shutdowns</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:var(--color-rose);">1 Hard Crash</span>
+            </div>
+            <div class="result-metric-row">
+              <span style="color:var(--text-muted);">Lost In-Progress Work</span>
+              <span class="mono" style="font-size:1.5rem; font-weight:700; color:var(--color-rose);">25.5 min Wasted</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="productivity-hero-banner">
+          <div class="productivity-stat mono" id="stat-gain">+39%</div>
+          <h3 style="color:#fff; font-size:1.4rem; margin-bottom: 8px;">More Useful Compute Time Every Single Orbit</h3>
+          <p style="max-width:680px; margin:0 auto; color:var(--text-muted);">
+            In space, heat is the real currency, not electricity. By predicting view-factor bottlenecks 5 minutes ahead, LumenOS transforms lost downtime into productive FLOPs.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 7: ARCHITECTURE FLOW
+         ====================================================================== -->
+    <section id="architecture" aria-label="System Architecture and Data Flow">
+      <div class="container">
+        <span class="section-eyebrow">Modular Python Infrastructure</span>
+        <h2 class="section-heading">System Architecture: The 30s Loop</h2>
+        <p class="section-desc">
+          LumenOS runs an autonomous 30-second decision cycle with a 5-minute predictive look-ahead window, synthesizing orbital geometry with GPU workload thermals.
+        </p>
+
+        <div class="arch-flow-diagram">
+          <!-- Node 1 -->
+          <div class="arch-node" title="Built with Skyfield & SGP4 on NASA JPL Ephemerides">
+            <div class="node-num">01 / ORBITAL</div>
+            <h3 class="node-title">Orbital Engine</h3>
+            <p style="font-size:0.85rem; margin-bottom:12px;">Calculates sunlit vs eclipse phases and radiator view-factor angles.</p>
+            <span class="node-tech">skyfield · sgp4</span>
+          </div>
+
+          <!-- Node 2 -->
+          <div class="arch-node" title="Lumped-capacitance numeric differential engine">
+            <div class="node-num">02 / THERMAL</div>
+            <h3 class="node-title">Thermal Engine</h3>
+            <p style="font-size:0.85rem; margin-bottom:12px;">Solves Stefan-Boltzmann radiation with a 500 Wh battery storage model.</p>
+            <span class="node-tech">numpy · stefan-boltzmann</span>
+          </div>
+
+          <!-- Node 3 -->
+          <div class="arch-node" title="Categorizes AI workloads by wattage & thermal profile">
+            <div class="node-num">03 / WORKLOAD</div>
+            <h3 class="node-title">Workload Profiler</h3>
+            <p style="font-size:0.85rem; margin-bottom:12px;">Prioritizes queue items into Heavy, Medium, and Cold execution tiers.</p>
+            <span class="node-tech">python dataclass</span>
+          </div>
+
+          <!-- Node 4 Brain -->
+          <div class="arch-node arch-node-brain" title="Core Decision Brain: Look-ahead prediction & state checkpointing">
+            <div class="node-num" style="color:var(--color-solar);">04 / THE BRAIN 🧠</div>
+            <h3 class="node-title">Lumen Scheduler</h3>
+            <p style="font-size:0.85rem; margin-bottom:12px;">5-minute forward simulator dispatches, checkpoints, or throttles jobs.</p>
+            <span class="node-tech" style="color:var(--color-solar);">heapq · predictive lookahead</span>
+          </div>
+
+          <!-- Node 5 -->
+          <div class="arch-node" title="Telemetry visualizer and dashboard">
+            <div class="node-num">05 / TELEMETRY</div>
+            <h3 class="node-title">Telemetry Deck</h3>
+            <p style="font-size:0.85rem; margin-bottom:12px;">Real-time 3D orbital globe and dynamic thermal timeline charts.</p>
+            <span class="node-tech">plotly · streamlit / web</span>
+          </div>
+        </div>
+
+        <div class="arch-pills-row">
+          <div class="badge">⏱️ 30-Second Real-Time Decision Loop</div>
+          <div class="badge">🔮 5-Minute Look-Ahead Predictive Simulation</div>
+          <div class="badge">💾 Checkpoint & Resume (Zero FLOP Loss)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 8: WHY WE'RE UNIQUE
+         ====================================================================== -->
+    <section id="unique" aria-label="Competitive Landscape and Uniqueness">
+      <div class="container">
+        <span class="section-eyebrow">Differentiators</span>
+        <h2 class="section-heading">Why LumenOS is Unique</h2>
+        <p class="section-desc">
+          While existing initiatives focus exclusively on bulky cooling hardware or spatial intra-cluster routing, LumenOS is the first to unlock orbital <strong>temporal scheduling</strong>.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="unique-table">
+            <thead>
+              <tr>
+                <th>Platform / Initiative</th>
+                <th>Core Approach</th>
+                <th>Open-Source?</th>
+                <th>Temporal (WHEN)?</th>
+                <th>Spatial (WHERE)?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>NASA ISS EATCS</strong></td>
+                <td>7-ton radiators + pumped ammonia fluid loop</td>
+                <td><span class="cross-icon">✗</span> (Government)</td>
+                <td><span class="cross-icon">✗</span> (Hardware only)</td>
+                <td><span class="cross-icon">✗</span></td>
+              </tr>
+              <tr>
+                <td><strong>Sophia Space SOOS</strong></td>
+                <td>Proprietary modular compute tiles</td>
+                <td><span class="cross-icon">✗</span> ($100M+ Closed)</td>
+                <td><span class="cross-icon">✗</span></td>
+                <td><span class="check-icon">✓</span> (Cluster)</td>
+              </tr>
+              <tr>
+                <td><strong>arXiv TLB Paper (2026)</strong></td>
+                <td>Thermal load balancing between nodes</td>
+                <td><span class="cross-icon">✗</span> (Paper Only)</td>
+                <td><span class="cross-icon">✗</span></td>
+                <td><span class="check-icon">✓</span> (Intra-cluster)</td>
+              </tr>
+              <tr>
+                <td><strong>Starcloud-1</strong></td>
+                <td>First in-orbit NVIDIA H100 hardware test</td>
+                <td><span class="cross-icon">✗</span> (Commercial)</td>
+                <td><span class="cross-icon">✗</span> (Manual thermal)</td>
+                <td><span class="cross-icon">✗</span></td>
+              </tr>
+              <tr class="highlight-row">
+                <td><strong>🛰️ LumenOS (Our Solution)</strong></td>
+                <td><strong>Thermodynamics-aware orbital hypervisor</strong></td>
+                <td><span class="check-icon">✓</span> <strong>MIT Open-Source</strong></td>
+                <td><span class="check-icon">✓</span> <strong>Orbital Cycle</strong></td>
+                <td><span class="check-icon">✓</span> <strong>Roadmap Multi-Node</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="arch-pills-row" style="margin-top:40px;">
+          <div class="badge">⏰ Temporal (WHEN), not just Spatial (WHERE)</div>
+          <div class="badge">🔓 Open-Source MIT for Startups & Universities</div>
+          <div class="badge">🏆 First Thermal-Aware Scheduler at Space Apps</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 9: TEAM PROTON
+         ====================================================================== -->
+    <section id="team" aria-label="Team Proton Members">
+      <div class="container">
+        <span class="section-eyebrow">NASA Space Apps 2026</span>
+        <h2 class="section-heading">Built by Team Proton</h2>
+        <p class="section-desc">
+          Four engineers bridging aerospace thermodynamics, distributed operating systems, and interactive telemetry visualization.
+        </p>
+
+        <div class="team-grid">
+          <!-- Member 1: Architect -->
+          <div class="team-card">
+            <div class="team-avatar">🧭</div>
+            <div class="team-role">System Architect</div>
+            <h3 class="team-name">Alex Vance</h3>
+            <p class="team-desc">System integration, NASA ephemeris data synthesis, and technical mission pitch.</p>
+          </div>
+
+          <!-- Member 2: Orbital & Physics -->
+          <div class="team-card">
+            <div class="team-avatar">🛰️</div>
+            <div class="team-role">Orbital & Physics</div>
+            <h3 class="team-name">Elena Rostova</h3>
+            <p class="team-desc">Skyfield SGP4 orbit propagation and Stefan-Boltzmann thermal capacitance modeling.</p>
+          </div>
+
+          <!-- Member 3: Scheduler/Backend -->
+          <div class="team-card">
+            <div class="team-avatar">🧠</div>
+            <div class="team-role">Scheduler & Backend</div>
+            <h3 class="team-name">Kavi Patel</h3>
+            <p class="team-desc">Priority queue heuristics, 5-minute look-ahead predictive engine, and checkpointing.</p>
+          </div>
+
+          <!-- Member 4: Frontend -->
+          <div class="team-card">
+            <div class="team-avatar">🎨</div>
+            <div class="team-role">Frontend & Graphics</div>
+            <h3 class="team-name">Liam Zhang</h3>
+            <p class="team-desc">Real-time WebGL Earth rendering, canvas telemetry charts, and UI interaction.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 10: CTA + FOOTER
+         ====================================================================== -->
+    <section id="cta" aria-label="Closing Call to Action">
+      <div class="container">
+        <h2 class="cta-heading">
+          If space is AI's next address, someone has to write its <span class="text-gradient">operating system</span>.
+        </h2>
+
+        <div class="hero-cta-group" style="justify-content:center;">
+          <a href="#simulator" class="btn btn-solar" style="font-size:1.05rem; padding:16px 36px;">
+            <span>▶</span> Launch Live Simulation
+          </a>
+          <a href="https://github.com" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:1.05rem; padding:16px 36px;">
+            View Code on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- SITE FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-note mono">
+        Physics-grounded simulation · Proof of concept · Not flight software
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-faint);">
+        NASA Space Apps Challenge 2026 · Global Hackathon Entry · Released under the open-source MIT License
+      </p>
+      <div style="display:flex; gap:20px; font-size:0.85rem;">
+        <a href="#hero" style="color:var(--text-muted); text-decoration:none;">Back to Top ↑</a>
+        <a href="#simulator" style="color:var(--color-cyan); text-decoration:none;">Simulation Deck</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       JAVASCRIPT: 3D EARTH, VIEW FACTOR ENGINE & ORBIT SIMULATOR
+       ========================================================================== -->
+  <script>
+    /* ==========================================================================
+       A. SMOOTH SCROLL PROGRESS & MAGNETIC CURSOR GLOW
+       ========================================================================== */
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('scroll-progress').style.width = scrolled + '%';
+
+      const header = document.getElementById('site-header');
+      if (winScroll > 60) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    // Ambient cursor follower with smooth interpolation
+    const cursorGlow = document.getElementById('cursor-glow');
+    let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
+    let currentX = mouseX, currentY = mouseY;
+
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    function animateCursor() {
+      currentX += (mouseX - currentX) * 0.12;
+      currentY += (mouseY - currentY) * 0.12;
+      if (cursorGlow) {
+        cursorGlow.style.left = currentX + 'px';
+        cursorGlow.style.top = currentY + 'px';
+      }
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    /* ==========================================================================
+       B. THREE.JS 3D EARTH & ORBITING SATELLITE HERO SCENE
+       ========================================================================== */
+    let scene, camera, renderer, earthGroup, satelliteMesh, sunLight;
+    let isSceneVisible = true;
+
+    function initHero3D() {
+      const container = document.getElementById('webgl-canvas-container');
+      const canvas = document.getElementById('hero-webgl');
+      if (!canvas || !container) return;
+
+      const width = container.clientWidth || window.innerWidth;
+      const height = container.clientHeight || window.innerHeight;
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(0, 0, 7.5);
+
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      // Earth Group (Earth + Atmosphere + Orbit Path)
+      earthGroup = new THREE.Group();
+      scene.add(earthGroup);
+
+      // Procedural Canvas Texture for Earth Continents
+      const earthTexCanvas = document.createElement('canvas');
+      earthTexCanvas.width = 1024;
+      earthTexCanvas.height = 512;
+      const ctx = earthTexCanvas.getContext('2d');
+      // Deep Ocean Blue Base
+      ctx.fillStyle = '#071833';
+      ctx.fillRect(0, 0, 1024, 512);
+      // Continents
+      ctx.fillStyle = '#0f402c';
+      const continents = [
+        [200, 150, 140, 70], [350, 180, 180, 90], [600, 130, 240, 110],
+        [750, 320, 120, 80], [220, 340, 90, 110], [540, 310, 100, 110]
+      ];
+      continents.forEach(([x, y, w, h]) => {
+        ctx.beginPath();
+        ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      // Cloud wisps
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      for (let i = 0; i < 35; i++) {
+        ctx.beginPath();
+        ctx.arc((i * 31) % 1024, (i * 17) % 512, (i * 7) % 55 + 20, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const earthTexture = new THREE.CanvasTexture(earthTexCanvas);
+      const earthGeo = new THREE.SphereGeometry(2.3, 48, 48);
+      const earthMat = new THREE.MeshStandardMaterial({
+        map: earthTexture,
+        roughness: 0.8,
+        metalness: 0.1
+      });
+      const earthMesh = new THREE.Mesh(earthGeo, earthMat);
+      earthGroup.add(earthMesh);
+
+      // Atmospheric Glow Outer Shell
+      const atmosGeo = new THREE.SphereGeometry(2.38, 32, 32);
+      const atmosMat = new THREE.MeshBasicMaterial({
+        color: 0x22d3ee,
+        transparent: true,
+        opacity: 0.12,
+        side: THREE.BackSide
+      });
+      const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat);
+      earthGroup.add(atmosMesh);
+
+      // Orbit Path Ring
+      const orbitGeo = new THREE.RingGeometry(3.58, 3.62, 64);
+      const orbitMat = new THREE.MeshBasicMaterial({
+        color: 0x22d3ee,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.2
+      });
+      const orbitRing = new THREE.Mesh(orbitGeo, orbitMat);
+      orbitRing.rotation.x = Math.PI / 2.3;
+      earthGroup.add(orbitRing);
+
+      // Satellite Model (Chassis, Solar Arrays & Radiator)
+      const satGroup = new THREE.Group();
+      const busGeo = new THREE.BoxGeometry(0.18, 0.18, 0.22);
+      const busMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+      const bus = new THREE.Mesh(busGeo, busMat);
+      satGroup.add(bus);
+
+      // Solar Wings
+      const wingGeo = new THREE.BoxGeometry(0.65, 0.02, 0.15);
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.5, roughness: 0.3 });
+      const wing = new THREE.Mesh(wingGeo, wingMat);
+      satGroup.add(wing);
+
+      // Glowing Heat Radiator Panel
+      const radGeo = new THREE.BoxGeometry(0.15, 0.15, 0.02);
+      const radMat = new THREE.MeshBasicMaterial({ color: 0xff9f1c });
+      const rad = new THREE.Mesh(radGeo, radMat);
+      rad.position.y = 0.12;
+      satGroup.add(rad);
+
+      satelliteMesh = satGroup;
+      earthGroup.add(satelliteMesh);
+
+      // Starfield Particle System
+      const starGeo = new THREE.BufferGeometry();
+      const starCount = 1800;
+      const starPos = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount * 3; i += 3) {
+        starPos[i] = (Math.random() - 0.5) * 80;
+        starPos[i + 1] = (Math.random() - 0.5) * 80;
+        starPos[i + 2] = -Math.random() * 40;
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+      const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.7 });
+      const starfield = new THREE.Points(starGeo, starMat);
+      scene.add(starfield);
+
+      // Lighting: Sun Light (Right) + Ambient
+      sunLight = new THREE.DirectionalLight(0xffedd5, 2.4);
+      sunLight.position.set(6, 3, 5);
+      scene.add(sunLight);
+
+      const ambientLight = new THREE.AmbientLight(0x0f172a, 0.7);
+      scene.add(ambientLight);
+
+      // Tilt Earth
+      earthGroup.rotation.z = 0.25;
+      earthGroup.position.x = 1.3;
+
+      window.addEventListener('resize', onWindowResize);
+      document.addEventListener('visibilitychange', () => {
+        isSceneVisible = !document.hidden;
+      });
+
+      animateHero();
+    }
+
+    let satAngle = 0;
+    function animateHero() {
+      requestAnimationFrame(animateHero);
+      if (!isSceneVisible) return;
+
+      // Earth slow rotation
+      if (earthGroup) {
+        earthGroup.rotation.y += 0.0018;
+      }
+
+      // Orbit satellite along orbital ring
+      if (satelliteMesh) {
+        satAngle += 0.009;
+        const radius = 3.6;
+        satelliteMesh.position.x = Math.cos(satAngle) * radius;
+        satelliteMesh.position.z = Math.sin(satAngle) * radius * Math.cos(Math.PI / 2.3);
+        satelliteMesh.position.y = Math.sin(satAngle) * radius * Math.sin(Math.PI / 2.3);
+        satelliteMesh.rotation.y = -satAngle;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('webgl-canvas-container');
+      if (!container || !renderer || !camera) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+
+    window.addEventListener('DOMContentLoaded', initHero3D);
+
+    /* ==========================================================================
+       C. SECTION 3: INTERACTIVE VIEW FACTOR LOGIC
+       ========================================================================== */
+    const vfStates = {
+      space: {
+        watts: 909,
+        percent: '90.9%',
+        temp: '36.4°C',
+        headroom: '+23.6°C',
+        color: '#10b981',
+        rotateDeg: 0,
+        envText: '● SINK: DEEP SPACE (3 K) — ZERO THERMAL RESISTANCE',
+        glowAura: 'rgba(16, 185, 129, 0.2)'
+      },
+      night: {
+        watts: 750,
+        percent: '75.0%',
+        temp: '47.8°C',
+        headroom: '+12.2°C',
+        color: '#fbbf24',
+        rotateDeg: 45,
+        envText: '● SINK: EARTH NIGHT (220 K) — MODERATE BACK-RADIATION',
+        glowAura: 'rgba(251, 191, 36, 0.2)'
+      },
+      day: {
+        watts: 491,
+        percent: '49.1%',
+        temp: '68.2°C',
+        headroom: '-8.2°C (WARNING)',
+        color: '#f43f5e',
+        rotateDeg: 90,
+        envText: '● SINK: EARTH DAY (280 K) — THERMAL TRAP: REJECTION THROTTLED',
+        glowAura: 'rgba(244, 63, 94, 0.3)'
+      }
+    };
+
+    function setViewFactor(mode) {
+      const state = vfStates[mode];
+      if (!state) return;
+
+      // Update button highlights
+      ['space', 'night', 'day'].forEach(m => {
+        const btn = document.getElementById(`vf-btn-${m}`);
+        if (btn) btn.className = 'vf-toggle-btn' + (m === mode ? ` active-${m}` : '');
+      });
+
+      // Update cooling bar & metrics
+      const wattLabel = document.getElementById('vf-wattage-label');
+      const progFill = document.getElementById('vf-progress-fill');
+      const coreTemp = document.getElementById('vf-core-temp');
+      const headroom = document.getElementById('vf-headroom');
+      const envInd = document.getElementById('vf-env-indicator');
+
+      if (wattLabel) {
+        wattLabel.innerText = state.watts + ' W';
+        wattLabel.style.color = state.color;
+      }
+      if (progFill) {
+        progFill.style.width = state.percent;
+        progFill.style.background = state.color;
+        progFill.style.boxShadow = `0 0 15px ${state.color}`;
+      }
+      if (coreTemp) {
+        coreTemp.innerText = state.temp;
+        coreTemp.style.color = state.color;
+      }
+      if (headroom) {
+        headroom.innerText = state.headroom;
+        headroom.style.color = state.color;
+      }
+      if (envInd) {
+        envInd.innerText = state.envText;
+        envInd.style.color = state.color;
+      }
+
+      // Update Diagram SVG
+      const radGroup = document.getElementById('svg-radiator-group');
+      const busCore = document.getElementById('svg-bus-core');
+      const glowAura = document.getElementById('svg-thermal-glow');
+
+      if (radGroup) radGroup.setAttribute('transform', `rotate(${state.rotateDeg} 200 80)`);
+      if (busCore) busCore.setAttribute('stroke', state.color);
+      if (glowAura) glowAura.setAttribute('fill', state.glowAura);
+    }
+
+    /* ==========================================================================
+       D. SECTION 5: LIVE ORBIT SIMULATOR (HEAD-TO-HEAD SYNCHRONIZED ENGINE)
+       ========================================================================== */
+    let simRunning = false;
+    let simTime = 0; // minutes (0 to 95.6)
+    let simSpeed = 1; // 1x, 5x, 15x
+    let simInterval = null;
+
+    // Simulation Physics Curves (0 to 95.6 mins)
+    function getNaiveTempAt(t) {
+      // Starts 25°C; increases fast while running heavy LLM (900W) with earth day radiator facing (~15-30m)
+      if (t < 30) {
+        return 25 + (t / 30) * 70.4; // Reaches 95.4°C at t=30m
+      } else if (t < 41) {
+        // Hard shutdown triggered at 95.4°C; stays dark cooling down until 70°C latch (11 min dark)
+        return 95.4 - ((t - 30) / 11) * 25.4;
+      } else if (t < 60) {
+        // Re-runs and rises again to ~78°C
+        return 70 + ((t - 41) / 19) * 8.5;
+      } else {
+        // Eclipse cooldown on battery
+        return 78.5 - ((t - 60) / 35.6) * 38;
+      }
+    }
+
+    function getLumenTempAt(t) {
+      // Predictive look-ahead pauses heavy job at 15m (56°C) before 60°C warning boundary
+      if (t < 15) {
+        return 25 + (t / 15) * 31; // Reaches 56°C
+      } else if (t < 35) {
+        // Switched to Object Detection (135W); safe plateau, stays below 59.9°C
+        return 56 + Math.sin((t - 15) / 20 * Math.PI) * 3.9;
+      } else if (t < 60) {
+        // Transition to eclipse
+        return 58 - ((t - 35) / 25) * 18;
+      } else {
+        // Eclipse cold jobs (Data Sorting & Log Compression ~30W)
+        return 40 - ((t - 60) / 35.6) * 8;
+      }
+    }
+
+    function getNaiveJobAt(t) {
+      if (t < 30) return { name: 'LLM_Fine_Tuning (900W)', color: '#fda4af', bg: 'rgba(244,63,94,0.15)' };
+      if (t < 41) return { name: '💥 CRITICAL SHUTDOWN (DARK COOLDOWN)', color: '#ef4444', bg: 'rgba(239,68,68,0.3)' };
+      if (t < 60) return { name: 'Restarted LLM (Progress Lost)', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' };
+      return { name: 'Idle on Battery', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' };
+    }
+
+    function getLumenJobAt(t) {
+      if (t < 15) return { name: 'LLM_Fine_Tuning (900W)', color: '#67e8f9', bg: 'rgba(34,211,238,0.15)' };
+      if (t < 35) return { name: '⏸️ Checkpoint Saved → Object_Detection (135W)', color: '#fde68a', bg: 'rgba(251,191,36,0.15)' };
+      if (t < 60) return { name: 'Data_Validation (90W)', color: '#6ee7b7', bg: 'rgba(16,185,129,0.15)' };
+      if (t < 75) return { name: 'Data_Sorting (30W) [Eclipse]', color: '#a5f3fc', bg: 'rgba(34,211,238,0.12)' };
+      return { name: 'Log_Compression (25W)', color: '#cbd5e1', bg: 'rgba(255,255,255,0.08)' };
+    }
+
+    // High Performance HTML5 Canvas Charts
+    const canvasNaive = document.getElementById('chart-naive');
+    const canvasLumen = document.getElementById('chart-lumenos');
+    const ctxNaive = canvasNaive.getContext('2d');
+    const ctxLumen = canvasLumen.getContext('2d');
+
+    function resizeSimCanvases() {
+      [canvasNaive, canvasLumen].forEach(c => {
+        c.width = c.clientWidth * (window.devicePixelRatio || 1);
+        c.height = c.clientHeight * (window.devicePixelRatio || 1);
+      });
+      renderCharts();
+    }
+    window.addEventListener('resize', resizeSimCanvases);
+
+    function renderCharts() {
+      drawSingleChart(ctxNaive, canvasNaive, getNaiveTempAt, '#f43f5e', simTime, true);
+      drawSingleChart(ctxLumen, canvasLumen, getLumenTempAt, '#22d3ee', simTime, false);
+    }
+
+    function drawSingleChart(ctx, canvas, tempFn, strokeColor, curTime, isNaive) {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Threshold Reference Lines: 60°C (Nominal), 80°C (Warning), 95°C (Shutdown)
+      const minTemp = 20, maxTemp = 105;
+      function getY(temp) {
+        return h - ((temp - minTemp) / (maxTemp - minTemp)) * (h - 20) - 10;
+      }
+
+      // 60°C Nominal Line
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, getY(60)); ctx.lineTo(w, getY(60));
+      ctx.stroke();
+
+      // 80°C Warning Line
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)';
+      ctx.beginPath();
+      ctx.moveTo(0, getY(80)); ctx.lineTo(w, getY(80));
+      ctx.stroke();
+
+      // 95°C Shutdown Line
+      ctx.strokeStyle = 'rgba(244, 63, 94, 0.45)';
+      ctx.beginPath();
+      ctx.moveTo(0, getY(95)); ctx.lineTo(w, getY(95));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw Historical Path
+      ctx.beginPath();
+      ctx.lineWidth = 2.5 * (window.devicePixelRatio || 1);
+      ctx.strokeStyle = strokeColor;
+      for (let m = 0; m <= curTime; m += 0.5) {
+        const x = (m / 95.6) * w;
+        const y = getY(tempFn(m));
+        if (m === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Current Head Dot
+      if (curTime > 0) {
+        const curX = (curTime / 95.6) * w;
+        const curY = getY(tempFn(curTime));
+        ctx.beginPath();
+        ctx.arc(curX, curY, 5 * (window.devicePixelRatio || 1), 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    function updateSimDOM() {
+      // Update Scrubber
+      document.getElementById('sim-scrubber').value = simTime.toFixed(1);
+
+      // Format Clock
+      const mins = Math.floor(simTime);
+      const secs = Math.floor((simTime % 1) * 60);
+      document.getElementById('sim-clock').innerText = 
+        `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+      // Sunlight vs Eclipse tag
+      const phaseTag = document.getElementById('sim-phase-tag');
+      if (simTime < 60) {
+        phaseTag.innerText = 'SUNLIT ARC';
+        phaseTag.style.background = 'rgba(255,159,28,0.2)';
+        phaseTag.style.color = 'var(--color-solar)';
+      } else {
+        phaseTag.innerText = 'ECLIPSE (BATTERY)';
+        phaseTag.style.background = 'rgba(34,211,238,0.15)';
+        phaseTag.style.color = 'var(--color-cyan)';
+      }
+
+      // Rotate Satellite along circular display
+      const satRotation = (simTime / 95.6) * 360;
+      document.getElementById('sim-orbit-sat').setAttribute('transform', `rotate(${satRotation} 130 130)`);
+
+      // Readouts & Current Workload Tags
+      const nTemp = getNaiveTempAt(simTime);
+      const lTemp = getLumenTempAt(simTime);
+      document.getElementById('naive-temp-readout').innerText = nTemp.toFixed(1) + '°C';
+      document.getElementById('lumen-temp-readout').innerText = lTemp.toFixed(1) + '°C';
+
+      const nJob = getNaiveJobAt(simTime);
+      const lJob = getLumenJobAt(simTime);
+      const nTag = document.getElementById('naive-job-tag');
+      const lTag = document.getElementById('lumen-job-tag');
+
+      nTag.innerText = nJob.name;
+      nTag.style.color = nJob.color;
+      nTag.style.background = nJob.bg;
+
+      lTag.innerText = lJob.name;
+      lTag.style.color = lJob.color;
+      lTag.style.background = lJob.bg;
+
+      // Crash & Shake Animation on Naive panel if it hits shutdown
+      const naivePanel = document.getElementById('panel-naive');
+      if (simTime >= 30 && simTime <= 31.5) {
+        naivePanel.classList.add('crash-shake');
+      } else {
+        naivePanel.classList.remove('crash-shake');
+      }
+
+      renderCharts();
+    }
+
+    function toggleSimulator() {
+      simRunning = !simRunning;
+      const playIcon = document.getElementById('play-icon');
+      const playText = document.getElementById('play-text');
+
+      if (simRunning) {
+        playIcon.innerText = '⏸';
+        playText.innerText = 'Pause';
+        if (simTime >= 95.6) simTime = 0;
+        simInterval = setInterval(() => {
+          simTime += 0.15 * simSpeed;
+          if (simTime >= 95.6) {
+            simTime = 95.6;
+            toggleSimulator();
+          }
+          updateSimDOM();
+        }, 50);
+      } else {
+        playIcon.innerText = '▶';
+        playText.innerText = 'Run Orbit';
+        clearInterval(simInterval);
+      }
+    }
+
+    function resetSimulator() {
+      if (simRunning) toggleSimulator();
+      simTime = 0;
+      updateSimDOM();
+    }
+
+    function scrubSimulator(val) {
+      simTime = parseFloat(val);
+      updateSimDOM();
+    }
+
+    function setSpeed(spd) {
+      simSpeed = spd;
+      [1, 5, 15].forEach(s => {
+        const b = document.getElementById(`spd-${s}`);
+        if (b) b.className = 'sim-speed-btn' + (s === spd ? ' active' : '');
+      });
+    }
+
+    window.addEventListener('load', () => {
+      resizeSimCanvases();
+      updateSimDOM();
+    });
+
+    /* ==========================================================================
+       E. LIVE TICKING HERO HUD VALUES
+       ========================================================================== */
+    setInterval(() => {
+      const hudTemp = document.getElementById('hud-temp');
+      const hudSolar = document.getElementById('hud-solar');
+      if (hudTemp) {
+        const base = 48.2;
+        const jitter = (Math.random() - 0.5) * 0.4;
+        hudTemp.innerText = (base + jitter).toFixed(1) + '°C';
+      }
+      if (hudSolar) {
+        const sBase = 1840;
+        const sJitter = Math.floor((Math.random() - 0.5) * 14);
+        hudSolar.innerText = (sBase + sJitter).toLocaleString() + ' W';
+      }
+    }, 2000);
+  </script>
+</body>
+</html>
